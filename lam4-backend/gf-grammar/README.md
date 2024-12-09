@@ -10,7 +10,7 @@ $ gf Lam4Eng.gf
 linking ... OK
 
 Languages: Lam4Eng
-Lam4> l -unlextext MkTypeDecl (MkMetadata "a game where you lose money") (MkName "Lottery") (ConsRowTypeDecl (MkRowDecl (MkMetadata "how much can be won from the jackpot") (MkName "‘total jackpot’")) (ConsRcowTypeDecl (MkRowDecl (MkMetadata "whether buying tickets from this lottery is tax deductible") (MkName "‘tax deductible status’")) BaseRowTypeDecl)) | ? tr "°∞" " \n"
+Lam4> l -unlextext MkTypeDecl (MkMetadata "a game where you lose money") (MkName "Lottery") (ConsRowTypeDecl (MkRowDecl (MkMetadata "how much can be won from the jackpot") (MkName "‘total jackpot’")) (ConsRowTypeDecl (MkRowDecl (MkMetadata "whether buying tickets from this lottery is tax deductible") (MkName "‘tax deductible status’")) BaseRowTypeDecl)) | ? tr "°∞" " \n"
 ```
 should linearize into the following
 ```

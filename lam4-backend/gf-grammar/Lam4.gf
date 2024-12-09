@@ -14,14 +14,25 @@ abstract Lam4 = {
     Name ;
     [Name]{0} ;
 
+    -- Special values for aggregation
+    ListOp ;
+    LExpr ;
+    [LExpr]{2} ;
+
+    -- (condition, value)
+    -- in order to flatten nested if-then-elses into if-elif-elif-…-else
+    IfThen ;
+    [IfThen]{2} ;
   fun
     -- Placeholder, or skip some constructs?
     EmptyS : S ;
-    TypeDeclS : TypeDecl -> S ;
+    TypeDeclS : (id : String) -> TypeDecl -> S ;
     EvalS,
     EvalWhetherS,
-    ExprS : Expr -> S ;
-    AssignS : Name -> Expr -> S ;
+    ExprS : (id : String) -> Expr -> S ;
+    AssignS : (id : String) -> Name -> Expr -> S ;
+    LetIsTrue : (id : String) -> Name -> Expr -> S ;
+    AtomicConcept : (id : String) -> Name -> S ;
 
     -- Metadata
     MkMetadata : String -> Metadata ;
@@ -38,17 +49,89 @@ abstract Lam4 = {
     Lit,
     QuoteVar,
     Var : Name -> Expr ;
-  -- | Cons       Expr Expr                           -- list cons
-  -- | List       [Expr]                              -- construct a list
-  -- | ListExpr   ListOp [Expr]
+
+    -- the following correspond to List and ListExpr in Lam4 AST,
+    -- named differently because of a bug in GF,
+    -- see https://github.com/GrammaticalFramework/gf-core/issues/163
+    ConjExpr : [Expr] -> Expr ; -- construct a list
+
+    coerceListExpr : Expr -> LExpr ;
+    ApplyListOp : ListOp -> [LExpr] -> Expr ;
+
+    ListAnd, ListOr : ListOp ;
+
     Unary   : UnaryOp -> Expr -> Expr ;
+    VerboseBinExpr, -- newline + quotes around args
     BinExpr : BinOp -> Expr -> Expr -> Expr ;
+
+    UnaryMinusExpr : Expr -> Expr ;
+    Round : (expr, prec : Expr) -> Expr ;
+    Default : (val, default : Expr) -> Expr ;
+
     IfThenElse : Expr -> Expr -> Expr -> Expr ;
+
+    -- Flatten nested If Then Elses
+    FirstIfThen : Expr -> Expr -> IfThen ;
+    MiddleIfThen : Expr -> Expr -> IfThen ;
+    NilIfThen : Expr -> IfThen ; -- the original IfThenElse
+    Elif: [IfThen] -> Expr ;
+    {-
+
+      IF    i's `the business's number of past and current clients`  is larger than
+       * 10.0: => the business's client bonus factor is 1.5
+       * 4.0  => the business's client bonus factor is 1.35
+       * 1.0  => the business's client bonus factor is 1.2
+       * ELSE => the business's client bonus factor is 1.0
+
+    -}
+
+    -- For linearizing functions that have a NLG annotation
+    FunApp1 : (description : String) -> (arg : Expr) -> Expr ;
+    FunApp2 : (desc1 : String) -> (arg1 : Expr) -> (desc2 : String) -> (arg2 : Expr) -> Expr ;
+
+    -- For linearizing functions that don't have NLG annotation
     FunApp : Expr -> [Expr] -> Expr ;
     -- Record : (Row Expr) -> Expr ;               -- record construction
+    OnlyFieldProject,
     Project : Expr -> Name -> Expr ;             -- record projection
     Fun : (funname : Name) -> Metadata -> (args : [Name]) -> Expr -> Expr ;  -- Function
-    -- Let :        Decl Expr
+    Sig : [Name] -> [Expr] -> Expr ; -- TODO: what is this? only `Sig [] []` present in royalflush data
+
+    {- TODO: this is used in context like
+
+       LET { foo
+           , bar
+           , baz
+           }
+       IN { expression that uses definitions
+          , another expression
+          , yet another
+          … }
+
+       as AST it looks like
+         Let (foo
+           Let (bar
+             Let baz )))
+
+       transform into:
+
+       [all variables]
+
+       [all Exprs]
+
+       and linearize as
+       -- Definitions ---
+       foo = …
+       bar = …
+       baz = …
+
+       -- Expressions --
+       if they are just like
+       `the business eligibility text` = `the business eligibility text`,
+       then don't print them.
+    -}
+    Let : S -> Expr -> Expr ;
+    Record : Name -> Expr -> Expr ;
     -- StatementBlock :  (NonEmpty Statement)
 
     NormIsInfringed : Name -> Expr ;             -- NormIsInfringed NameOfNorm.
@@ -56,8 +139,18 @@ abstract Lam4 = {
 
 
     Predicate : (predname : Name) -> Metadata -> (args : [Name]) -> Expr -> Expr ;            -- Differs from a function when doing symbolic evaluation. Exact way in which they should differ is WIP.
-    PredApp : Expr -> [Expr] -> Expr ;
+
+    PredApp : (pred : Expr) -> (args : [Expr]) -> Expr ;
+
+    -- Aggregation of multiple PredApps being applied to the same argument(s).
+    PredAppMany : BinOp -> (preds : [Expr]) -> (args : [Expr]) -> Expr ;
     Fold : Expr -> Expr -> Expr -> Expr ;
+
+    -- When generating natural language for some file that defines a bunch of stuff like cons, map, filter,
+    -- apply this function instead to keep it in the AST
+    -- but skip linearization.
+    KnownFunction : Name -> Expr ;
+
 
     -- Unary and binary operators
     Not,
@@ -80,23 +173,3 @@ abstract Lam4 = {
     Eq : BinOp ;      -- ^ equality (of Booleans, numbers or atoms)
     Ne : BinOp ;      -- ^ inequality (of Booleans, numbers or atoms)
 }
-
-{-
-— <some kind of description>
-LOTTERY {
-  — how much can be won from the jackpot
- `total jackpot`: Integer,
-   — whether buying tickets from this lottery is tax deductible
-  `tax deductible status`: Boolean
-}
-
-
-This can be rendered as:
-
-MkTypeDecl (MkMetadata "a game where you lose money") "Lottery" (ConsRowTypeDecl (MkRowDecl (MkMetadata "how much can be won from the jackpot") "‘total jackpot’") (ConsRowTypeDecl (MkRowDecl (MkMetadata "whether buying tickets from this lottery is tax deductible") "‘tax deductible status’") BaseRowTypeDecl))
-
-A/An ‘Lottery’ is <insert description>.
-Each lottery has associated with it information like
-  * its ‘total jackpot’; i.e., how much can be won from the jackpot
-  * its ‘tax deductible status’; i.e., whether buying tickets from this lottery is tax deductible
--}

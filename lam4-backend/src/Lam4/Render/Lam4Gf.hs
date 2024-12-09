@@ -44,10 +44,20 @@ type GBinOp = Tree GBinOp_
 data GBinOp_
 type GExpr = Tree GExpr_
 data GExpr_
+type GIfThen = Tree GIfThen_
+data GIfThen_
+type GLExpr = Tree GLExpr_
+data GLExpr_
 type GListExpr = Tree GListExpr_
 data GListExpr_
+type GListIfThen = Tree GListIfThen_
+data GListIfThen_
+type GListLExpr = Tree GListLExpr_
+data GListLExpr_
 type GListName = Tree GListName_
 data GListName_
+type GListOp = Tree GListOp_
+data GListOp_
 type GListRowTypeDecl = Tree GListRowTypeDecl_
 data GListRowTypeDecl_
 type GMetadata = Tree GMetadata_
@@ -83,33 +93,58 @@ data Tree :: * -> * where
   GNe :: Tree GBinOp_
   GOr :: Tree GBinOp_
   GPlus :: Tree GBinOp_
+  GApplyListOp :: GListOp -> GListLExpr -> Tree GExpr_
   GBinExpr :: GBinOp -> GExpr -> GExpr -> Tree GExpr_
+  GConjExpr :: GListExpr -> Tree GExpr_
+  GDefault :: GExpr -> GExpr -> Tree GExpr_
+  GElif :: GListIfThen -> Tree GExpr_
   GFold :: GExpr -> GExpr -> GExpr -> Tree GExpr_
   GFun :: GName -> GMetadata -> GListName -> GExpr -> Tree GExpr_
   GFunApp :: GExpr -> GListExpr -> Tree GExpr_
+  GFunApp1 :: GString -> GExpr -> Tree GExpr_
+  GFunApp2 :: GString -> GExpr -> GString -> GExpr -> Tree GExpr_
   GIfThenElse :: GExpr -> GExpr -> GExpr -> Tree GExpr_
+  GKnownFunction :: GName -> Tree GExpr_
+  GLet :: GS -> GExpr -> Tree GExpr_
   GLit :: GName -> Tree GExpr_
   GNormIsInfringed :: GName -> Tree GExpr_
+  GOnlyFieldProject :: GExpr -> GName -> Tree GExpr_
   GPredApp :: GExpr -> GListExpr -> Tree GExpr_
+  GPredAppMany :: GBinOp -> GListExpr -> GListExpr -> Tree GExpr_
   GPredicate :: GName -> GMetadata -> GListName -> GExpr -> Tree GExpr_
   GProject :: GExpr -> GName -> Tree GExpr_
   GQuoteVar :: GName -> Tree GExpr_
+  GRecord :: GName -> GExpr -> Tree GExpr_
+  GRound :: GExpr -> GExpr -> Tree GExpr_
+  GSig :: GListName -> GListExpr -> Tree GExpr_
   GUnary :: GUnaryOp -> GExpr -> Tree GExpr_
+  GUnaryMinusExpr :: GExpr -> Tree GExpr_
   GVar :: GName -> Tree GExpr_
+  GVerboseBinExpr :: GBinOp -> GExpr -> GExpr -> Tree GExpr_
+  GFirstIfThen :: GExpr -> GExpr -> Tree GIfThen_
+  GMiddleIfThen :: GExpr -> GExpr -> Tree GIfThen_
+  GNilIfThen :: GExpr -> Tree GIfThen_
+  GcoerceListExpr :: GExpr -> Tree GLExpr_
   GListExpr :: [GExpr] -> Tree GListExpr_
+  GListIfThen :: [GIfThen] -> Tree GListIfThen_
+  GListLExpr :: [GLExpr] -> Tree GListLExpr_
   GListName :: [GName] -> Tree GListName_
+  GListAnd :: Tree GListOp_
+  GListOr :: Tree GListOp_
   GListRowTypeDecl :: [GRowTypeDecl] -> Tree GListRowTypeDecl_
   GMkMetadata :: GString -> Tree GMetadata_
   GNoMetadata :: Tree GMetadata_
   GMkName :: GString -> Tree GName_
   GMkRowDecl :: GMetadata -> GName -> Tree GRowTypeDecl_
   GMkRowTypeDecl :: GMetadata -> GName -> GName -> Tree GRowTypeDecl_
-  GAssignS :: GName -> GExpr -> Tree GS_
+  GAssignS :: GString -> GName -> GExpr -> Tree GS_
+  GAtomicConcept :: GString -> GName -> Tree GS_
   GEmptyS :: Tree GS_
-  GEvalS :: GExpr -> Tree GS_
-  GEvalWhetherS :: GExpr -> Tree GS_
-  GExprS :: GExpr -> Tree GS_
-  GTypeDeclS :: GTypeDecl -> Tree GS_
+  GEvalS :: GString -> GExpr -> Tree GS_
+  GEvalWhetherS :: GString -> GExpr -> Tree GS_
+  GExprS :: GString -> GExpr -> Tree GS_
+  GLetIsTrue :: GString -> GName -> GExpr -> Tree GS_
+  GTypeDeclS :: GString -> GTypeDecl -> Tree GS_
   GMkTypeDecl :: GMetadata -> GName -> GListRowTypeDecl -> Tree GTypeDecl_
   GCeiling :: Tree GUnaryOp_
   GFloor :: Tree GUnaryOp_
@@ -135,33 +170,58 @@ instance Eq (Tree a) where
     (GNe,GNe) -> and [ ]
     (GOr,GOr) -> and [ ]
     (GPlus,GPlus) -> and [ ]
+    (GApplyListOp x1 x2,GApplyListOp y1 y2) -> and [ x1 == y1 , x2 == y2 ]
     (GBinExpr x1 x2 x3,GBinExpr y1 y2 y3) -> and [ x1 == y1 , x2 == y2 , x3 == y3 ]
+    (GConjExpr x1,GConjExpr y1) -> and [ x1 == y1 ]
+    (GDefault x1 x2,GDefault y1 y2) -> and [ x1 == y1 , x2 == y2 ]
+    (GElif x1,GElif y1) -> and [ x1 == y1 ]
     (GFold x1 x2 x3,GFold y1 y2 y3) -> and [ x1 == y1 , x2 == y2 , x3 == y3 ]
     (GFun x1 x2 x3 x4,GFun y1 y2 y3 y4) -> and [ x1 == y1 , x2 == y2 , x3 == y3 , x4 == y4 ]
     (GFunApp x1 x2,GFunApp y1 y2) -> and [ x1 == y1 , x2 == y2 ]
+    (GFunApp1 x1 x2,GFunApp1 y1 y2) -> and [ x1 == y1 , x2 == y2 ]
+    (GFunApp2 x1 x2 x3 x4,GFunApp2 y1 y2 y3 y4) -> and [ x1 == y1 , x2 == y2 , x3 == y3 , x4 == y4 ]
     (GIfThenElse x1 x2 x3,GIfThenElse y1 y2 y3) -> and [ x1 == y1 , x2 == y2 , x3 == y3 ]
+    (GKnownFunction x1,GKnownFunction y1) -> and [ x1 == y1 ]
+    (GLet x1 x2,GLet y1 y2) -> and [ x1 == y1 , x2 == y2 ]
     (GLit x1,GLit y1) -> and [ x1 == y1 ]
     (GNormIsInfringed x1,GNormIsInfringed y1) -> and [ x1 == y1 ]
+    (GOnlyFieldProject x1 x2,GOnlyFieldProject y1 y2) -> and [ x1 == y1 , x2 == y2 ]
     (GPredApp x1 x2,GPredApp y1 y2) -> and [ x1 == y1 , x2 == y2 ]
+    (GPredAppMany x1 x2 x3,GPredAppMany y1 y2 y3) -> and [ x1 == y1 , x2 == y2 , x3 == y3 ]
     (GPredicate x1 x2 x3 x4,GPredicate y1 y2 y3 y4) -> and [ x1 == y1 , x2 == y2 , x3 == y3 , x4 == y4 ]
     (GProject x1 x2,GProject y1 y2) -> and [ x1 == y1 , x2 == y2 ]
     (GQuoteVar x1,GQuoteVar y1) -> and [ x1 == y1 ]
+    (GRecord x1 x2,GRecord y1 y2) -> and [ x1 == y1 , x2 == y2 ]
+    (GRound x1 x2,GRound y1 y2) -> and [ x1 == y1 , x2 == y2 ]
+    (GSig x1 x2,GSig y1 y2) -> and [ x1 == y1 , x2 == y2 ]
     (GUnary x1 x2,GUnary y1 y2) -> and [ x1 == y1 , x2 == y2 ]
+    (GUnaryMinusExpr x1,GUnaryMinusExpr y1) -> and [ x1 == y1 ]
     (GVar x1,GVar y1) -> and [ x1 == y1 ]
+    (GVerboseBinExpr x1 x2 x3,GVerboseBinExpr y1 y2 y3) -> and [ x1 == y1 , x2 == y2 , x3 == y3 ]
+    (GFirstIfThen x1 x2,GFirstIfThen y1 y2) -> and [ x1 == y1 , x2 == y2 ]
+    (GMiddleIfThen x1 x2,GMiddleIfThen y1 y2) -> and [ x1 == y1 , x2 == y2 ]
+    (GNilIfThen x1,GNilIfThen y1) -> and [ x1 == y1 ]
+    (GcoerceListExpr x1,GcoerceListExpr y1) -> and [ x1 == y1 ]
     (GListExpr x1,GListExpr y1) -> and [x == y | (x,y) <- zip x1 y1]
+    (GListIfThen x1,GListIfThen y1) -> and [x == y | (x,y) <- zip x1 y1]
+    (GListLExpr x1,GListLExpr y1) -> and [x == y | (x,y) <- zip x1 y1]
     (GListName x1,GListName y1) -> and [x == y | (x,y) <- zip x1 y1]
+    (GListAnd,GListAnd) -> and [ ]
+    (GListOr,GListOr) -> and [ ]
     (GListRowTypeDecl x1,GListRowTypeDecl y1) -> and [x == y | (x,y) <- zip x1 y1]
     (GMkMetadata x1,GMkMetadata y1) -> and [ x1 == y1 ]
     (GNoMetadata,GNoMetadata) -> and [ ]
     (GMkName x1,GMkName y1) -> and [ x1 == y1 ]
     (GMkRowDecl x1 x2,GMkRowDecl y1 y2) -> and [ x1 == y1 , x2 == y2 ]
     (GMkRowTypeDecl x1 x2 x3,GMkRowTypeDecl y1 y2 y3) -> and [ x1 == y1 , x2 == y2 , x3 == y3 ]
-    (GAssignS x1 x2,GAssignS y1 y2) -> and [ x1 == y1 , x2 == y2 ]
+    (GAssignS x1 x2 x3,GAssignS y1 y2 y3) -> and [ x1 == y1 , x2 == y2 , x3 == y3 ]
+    (GAtomicConcept x1 x2,GAtomicConcept y1 y2) -> and [ x1 == y1 , x2 == y2 ]
     (GEmptyS,GEmptyS) -> and [ ]
-    (GEvalS x1,GEvalS y1) -> and [ x1 == y1 ]
-    (GEvalWhetherS x1,GEvalWhetherS y1) -> and [ x1 == y1 ]
-    (GExprS x1,GExprS y1) -> and [ x1 == y1 ]
-    (GTypeDeclS x1,GTypeDeclS y1) -> and [ x1 == y1 ]
+    (GEvalS x1 x2,GEvalS y1 y2) -> and [ x1 == y1 , x2 == y2 ]
+    (GEvalWhetherS x1 x2,GEvalWhetherS y1 y2) -> and [ x1 == y1 , x2 == y2 ]
+    (GExprS x1 x2,GExprS y1 y2) -> and [ x1 == y1 , x2 == y2 ]
+    (GLetIsTrue x1 x2 x3,GLetIsTrue y1 y2 y3) -> and [ x1 == y1 , x2 == y2 , x3 == y3 ]
+    (GTypeDeclS x1 x2,GTypeDeclS y1 y2) -> and [ x1 == y1 , x2 == y2 ]
     (GMkTypeDecl x1 x2 x3,GMkTypeDecl y1 y2 y3) -> and [ x1 == y1 , x2 == y2 , x3 == y3 ]
     (GCeiling,GCeiling) -> and [ ]
     (GFloor,GFloor) -> and [ ]
@@ -208,38 +268,92 @@ instance Gf GBinOp where
       _ -> error ("no BinOp " ++ show t)
 
 instance Gf GExpr where
+  gf (GApplyListOp x1 x2) = mkApp (mkCId "ApplyListOp") [gf x1, gf x2]
   gf (GBinExpr x1 x2 x3) = mkApp (mkCId "BinExpr") [gf x1, gf x2, gf x3]
+  gf (GConjExpr x1) = mkApp (mkCId "ConjExpr") [gf x1]
+  gf (GDefault x1 x2) = mkApp (mkCId "Default") [gf x1, gf x2]
+  gf (GElif x1) = mkApp (mkCId "Elif") [gf x1]
   gf (GFold x1 x2 x3) = mkApp (mkCId "Fold") [gf x1, gf x2, gf x3]
   gf (GFun x1 x2 x3 x4) = mkApp (mkCId "Fun") [gf x1, gf x2, gf x3, gf x4]
   gf (GFunApp x1 x2) = mkApp (mkCId "FunApp") [gf x1, gf x2]
+  gf (GFunApp1 x1 x2) = mkApp (mkCId "FunApp1") [gf x1, gf x2]
+  gf (GFunApp2 x1 x2 x3 x4) = mkApp (mkCId "FunApp2") [gf x1, gf x2, gf x3, gf x4]
   gf (GIfThenElse x1 x2 x3) = mkApp (mkCId "IfThenElse") [gf x1, gf x2, gf x3]
+  gf (GKnownFunction x1) = mkApp (mkCId "KnownFunction") [gf x1]
+  gf (GLet x1 x2) = mkApp (mkCId "Let") [gf x1, gf x2]
   gf (GLit x1) = mkApp (mkCId "Lit") [gf x1]
   gf (GNormIsInfringed x1) = mkApp (mkCId "NormIsInfringed") [gf x1]
+  gf (GOnlyFieldProject x1 x2) = mkApp (mkCId "OnlyFieldProject") [gf x1, gf x2]
   gf (GPredApp x1 x2) = mkApp (mkCId "PredApp") [gf x1, gf x2]
+  gf (GPredAppMany x1 x2 x3) = mkApp (mkCId "PredAppMany") [gf x1, gf x2, gf x3]
   gf (GPredicate x1 x2 x3 x4) = mkApp (mkCId "Predicate") [gf x1, gf x2, gf x3, gf x4]
   gf (GProject x1 x2) = mkApp (mkCId "Project") [gf x1, gf x2]
   gf (GQuoteVar x1) = mkApp (mkCId "QuoteVar") [gf x1]
+  gf (GRecord x1 x2) = mkApp (mkCId "Record") [gf x1, gf x2]
+  gf (GRound x1 x2) = mkApp (mkCId "Round") [gf x1, gf x2]
+  gf (GSig x1 x2) = mkApp (mkCId "Sig") [gf x1, gf x2]
   gf (GUnary x1 x2) = mkApp (mkCId "Unary") [gf x1, gf x2]
+  gf (GUnaryMinusExpr x1) = mkApp (mkCId "UnaryMinusExpr") [gf x1]
   gf (GVar x1) = mkApp (mkCId "Var") [gf x1]
+  gf (GVerboseBinExpr x1 x2 x3) = mkApp (mkCId "VerboseBinExpr") [gf x1, gf x2, gf x3]
 
   fg t =
     case unApp t of
+      Just (i,[x1,x2]) | i == mkCId "ApplyListOp" -> GApplyListOp (fg x1) (fg x2)
       Just (i,[x1,x2,x3]) | i == mkCId "BinExpr" -> GBinExpr (fg x1) (fg x2) (fg x3)
+      Just (i,[x1]) | i == mkCId "ConjExpr" -> GConjExpr (fg x1)
+      Just (i,[x1,x2]) | i == mkCId "Default" -> GDefault (fg x1) (fg x2)
+      Just (i,[x1]) | i == mkCId "Elif" -> GElif (fg x1)
       Just (i,[x1,x2,x3]) | i == mkCId "Fold" -> GFold (fg x1) (fg x2) (fg x3)
       Just (i,[x1,x2,x3,x4]) | i == mkCId "Fun" -> GFun (fg x1) (fg x2) (fg x3) (fg x4)
       Just (i,[x1,x2]) | i == mkCId "FunApp" -> GFunApp (fg x1) (fg x2)
+      Just (i,[x1,x2]) | i == mkCId "FunApp1" -> GFunApp1 (fg x1) (fg x2)
+      Just (i,[x1,x2,x3,x4]) | i == mkCId "FunApp2" -> GFunApp2 (fg x1) (fg x2) (fg x3) (fg x4)
       Just (i,[x1,x2,x3]) | i == mkCId "IfThenElse" -> GIfThenElse (fg x1) (fg x2) (fg x3)
+      Just (i,[x1]) | i == mkCId "KnownFunction" -> GKnownFunction (fg x1)
+      Just (i,[x1,x2]) | i == mkCId "Let" -> GLet (fg x1) (fg x2)
       Just (i,[x1]) | i == mkCId "Lit" -> GLit (fg x1)
       Just (i,[x1]) | i == mkCId "NormIsInfringed" -> GNormIsInfringed (fg x1)
+      Just (i,[x1,x2]) | i == mkCId "OnlyFieldProject" -> GOnlyFieldProject (fg x1) (fg x2)
       Just (i,[x1,x2]) | i == mkCId "PredApp" -> GPredApp (fg x1) (fg x2)
+      Just (i,[x1,x2,x3]) | i == mkCId "PredAppMany" -> GPredAppMany (fg x1) (fg x2) (fg x3)
       Just (i,[x1,x2,x3,x4]) | i == mkCId "Predicate" -> GPredicate (fg x1) (fg x2) (fg x3) (fg x4)
       Just (i,[x1,x2]) | i == mkCId "Project" -> GProject (fg x1) (fg x2)
       Just (i,[x1]) | i == mkCId "QuoteVar" -> GQuoteVar (fg x1)
+      Just (i,[x1,x2]) | i == mkCId "Record" -> GRecord (fg x1) (fg x2)
+      Just (i,[x1,x2]) | i == mkCId "Round" -> GRound (fg x1) (fg x2)
+      Just (i,[x1,x2]) | i == mkCId "Sig" -> GSig (fg x1) (fg x2)
       Just (i,[x1,x2]) | i == mkCId "Unary" -> GUnary (fg x1) (fg x2)
+      Just (i,[x1]) | i == mkCId "UnaryMinusExpr" -> GUnaryMinusExpr (fg x1)
       Just (i,[x1]) | i == mkCId "Var" -> GVar (fg x1)
+      Just (i,[x1,x2,x3]) | i == mkCId "VerboseBinExpr" -> GVerboseBinExpr (fg x1) (fg x2) (fg x3)
 
 
       _ -> error ("no Expr " ++ show t)
+
+instance Gf GIfThen where
+  gf (GFirstIfThen x1 x2) = mkApp (mkCId "FirstIfThen") [gf x1, gf x2]
+  gf (GMiddleIfThen x1 x2) = mkApp (mkCId "MiddleIfThen") [gf x1, gf x2]
+  gf (GNilIfThen x1) = mkApp (mkCId "NilIfThen") [gf x1]
+
+  fg t =
+    case unApp t of
+      Just (i,[x1,x2]) | i == mkCId "FirstIfThen" -> GFirstIfThen (fg x1) (fg x2)
+      Just (i,[x1,x2]) | i == mkCId "MiddleIfThen" -> GMiddleIfThen (fg x1) (fg x2)
+      Just (i,[x1]) | i == mkCId "NilIfThen" -> GNilIfThen (fg x1)
+
+
+      _ -> error ("no IfThen " ++ show t)
+
+instance Gf GLExpr where
+  gf (GcoerceListExpr x1) = mkApp (mkCId "coerceListExpr") [gf x1]
+
+  fg t =
+    case unApp t of
+      Just (i,[x1]) | i == mkCId "coerceListExpr" -> GcoerceListExpr (fg x1)
+
+
+      _ -> error ("no LExpr " ++ show t)
 
 instance Gf GListExpr where
   gf (GListExpr []) = mkApp (mkCId "BaseExpr") []
@@ -253,6 +367,30 @@ instance Gf GListExpr where
 
       _ -> error ("no ListExpr " ++ show t)
 
+instance Gf GListIfThen where
+  gf (GListIfThen [x1,x2]) = mkApp (mkCId "BaseIfThen") [gf x1, gf x2]
+  gf (GListIfThen (x:xs)) = mkApp (mkCId "ConsIfThen") [gf x, gf (GListIfThen xs)]
+  fg t =
+    GListIfThen (fgs t) where
+     fgs t = case unApp t of
+      Just (i,[x1,x2]) | i == mkCId "BaseIfThen" -> [fg x1, fg x2]
+      Just (i,[x1,x2]) | i == mkCId "ConsIfThen" -> fg x1 : fgs x2
+
+
+      _ -> error ("no ListIfThen " ++ show t)
+
+instance Gf GListLExpr where
+  gf (GListLExpr [x1,x2]) = mkApp (mkCId "BaseLExpr") [gf x1, gf x2]
+  gf (GListLExpr (x:xs)) = mkApp (mkCId "ConsLExpr") [gf x, gf (GListLExpr xs)]
+  fg t =
+    GListLExpr (fgs t) where
+     fgs t = case unApp t of
+      Just (i,[x1,x2]) | i == mkCId "BaseLExpr" -> [fg x1, fg x2]
+      Just (i,[x1,x2]) | i == mkCId "ConsLExpr" -> fg x1 : fgs x2
+
+
+      _ -> error ("no ListLExpr " ++ show t)
+
 instance Gf GListName where
   gf (GListName []) = mkApp (mkCId "BaseName") []
   gf (GListName (x:xs)) = mkApp (mkCId "ConsName") [gf x, gf (GListName xs)]
@@ -264,6 +402,18 @@ instance Gf GListName where
 
 
       _ -> error ("no ListName " ++ show t)
+
+instance Gf GListOp where
+  gf GListAnd = mkApp (mkCId "ListAnd") []
+  gf GListOr = mkApp (mkCId "ListOr") []
+
+  fg t =
+    case unApp t of
+      Just (i,[]) | i == mkCId "ListAnd" -> GListAnd 
+      Just (i,[]) | i == mkCId "ListOr" -> GListOr 
+
+
+      _ -> error ("no ListOp " ++ show t)
 
 instance Gf GListRowTypeDecl where
   gf (GListRowTypeDecl []) = mkApp (mkCId "BaseRowTypeDecl") []
@@ -312,21 +462,25 @@ instance Gf GRowTypeDecl where
       _ -> error ("no RowTypeDecl " ++ show t)
 
 instance Gf GS where
-  gf (GAssignS x1 x2) = mkApp (mkCId "AssignS") [gf x1, gf x2]
+  gf (GAssignS x1 x2 x3) = mkApp (mkCId "AssignS") [gf x1, gf x2, gf x3]
+  gf (GAtomicConcept x1 x2) = mkApp (mkCId "AtomicConcept") [gf x1, gf x2]
   gf GEmptyS = mkApp (mkCId "EmptyS") []
-  gf (GEvalS x1) = mkApp (mkCId "EvalS") [gf x1]
-  gf (GEvalWhetherS x1) = mkApp (mkCId "EvalWhetherS") [gf x1]
-  gf (GExprS x1) = mkApp (mkCId "ExprS") [gf x1]
-  gf (GTypeDeclS x1) = mkApp (mkCId "TypeDeclS") [gf x1]
+  gf (GEvalS x1 x2) = mkApp (mkCId "EvalS") [gf x1, gf x2]
+  gf (GEvalWhetherS x1 x2) = mkApp (mkCId "EvalWhetherS") [gf x1, gf x2]
+  gf (GExprS x1 x2) = mkApp (mkCId "ExprS") [gf x1, gf x2]
+  gf (GLetIsTrue x1 x2 x3) = mkApp (mkCId "LetIsTrue") [gf x1, gf x2, gf x3]
+  gf (GTypeDeclS x1 x2) = mkApp (mkCId "TypeDeclS") [gf x1, gf x2]
 
   fg t =
     case unApp t of
-      Just (i,[x1,x2]) | i == mkCId "AssignS" -> GAssignS (fg x1) (fg x2)
+      Just (i,[x1,x2,x3]) | i == mkCId "AssignS" -> GAssignS (fg x1) (fg x2) (fg x3)
+      Just (i,[x1,x2]) | i == mkCId "AtomicConcept" -> GAtomicConcept (fg x1) (fg x2)
       Just (i,[]) | i == mkCId "EmptyS" -> GEmptyS 
-      Just (i,[x1]) | i == mkCId "EvalS" -> GEvalS (fg x1)
-      Just (i,[x1]) | i == mkCId "EvalWhetherS" -> GEvalWhetherS (fg x1)
-      Just (i,[x1]) | i == mkCId "ExprS" -> GExprS (fg x1)
-      Just (i,[x1]) | i == mkCId "TypeDeclS" -> GTypeDeclS (fg x1)
+      Just (i,[x1,x2]) | i == mkCId "EvalS" -> GEvalS (fg x1) (fg x2)
+      Just (i,[x1,x2]) | i == mkCId "EvalWhetherS" -> GEvalWhetherS (fg x1) (fg x2)
+      Just (i,[x1,x2]) | i == mkCId "ExprS" -> GExprS (fg x1) (fg x2)
+      Just (i,[x1,x2,x3]) | i == mkCId "LetIsTrue" -> GLetIsTrue (fg x1) (fg x2) (fg x3)
+      Just (i,[x1,x2]) | i == mkCId "TypeDeclS" -> GTypeDeclS (fg x1) (fg x2)
 
 
       _ -> error ("no S " ++ show t)
@@ -362,30 +516,53 @@ instance Gf GUnaryOp where
 
 instance Compos Tree where
   compos r a f t = case t of
+    GApplyListOp x1 x2 -> r GApplyListOp `a` f x1 `a` f x2
     GBinExpr x1 x2 x3 -> r GBinExpr `a` f x1 `a` f x2 `a` f x3
+    GConjExpr x1 -> r GConjExpr `a` f x1
+    GDefault x1 x2 -> r GDefault `a` f x1 `a` f x2
+    GElif x1 -> r GElif `a` f x1
     GFold x1 x2 x3 -> r GFold `a` f x1 `a` f x2 `a` f x3
     GFun x1 x2 x3 x4 -> r GFun `a` f x1 `a` f x2 `a` f x3 `a` f x4
     GFunApp x1 x2 -> r GFunApp `a` f x1 `a` f x2
+    GFunApp1 x1 x2 -> r GFunApp1 `a` f x1 `a` f x2
+    GFunApp2 x1 x2 x3 x4 -> r GFunApp2 `a` f x1 `a` f x2 `a` f x3 `a` f x4
     GIfThenElse x1 x2 x3 -> r GIfThenElse `a` f x1 `a` f x2 `a` f x3
+    GKnownFunction x1 -> r GKnownFunction `a` f x1
+    GLet x1 x2 -> r GLet `a` f x1 `a` f x2
     GLit x1 -> r GLit `a` f x1
     GNormIsInfringed x1 -> r GNormIsInfringed `a` f x1
+    GOnlyFieldProject x1 x2 -> r GOnlyFieldProject `a` f x1 `a` f x2
     GPredApp x1 x2 -> r GPredApp `a` f x1 `a` f x2
+    GPredAppMany x1 x2 x3 -> r GPredAppMany `a` f x1 `a` f x2 `a` f x3
     GPredicate x1 x2 x3 x4 -> r GPredicate `a` f x1 `a` f x2 `a` f x3 `a` f x4
     GProject x1 x2 -> r GProject `a` f x1 `a` f x2
     GQuoteVar x1 -> r GQuoteVar `a` f x1
+    GRecord x1 x2 -> r GRecord `a` f x1 `a` f x2
+    GRound x1 x2 -> r GRound `a` f x1 `a` f x2
+    GSig x1 x2 -> r GSig `a` f x1 `a` f x2
     GUnary x1 x2 -> r GUnary `a` f x1 `a` f x2
+    GUnaryMinusExpr x1 -> r GUnaryMinusExpr `a` f x1
     GVar x1 -> r GVar `a` f x1
+    GVerboseBinExpr x1 x2 x3 -> r GVerboseBinExpr `a` f x1 `a` f x2 `a` f x3
+    GFirstIfThen x1 x2 -> r GFirstIfThen `a` f x1 `a` f x2
+    GMiddleIfThen x1 x2 -> r GMiddleIfThen `a` f x1 `a` f x2
+    GNilIfThen x1 -> r GNilIfThen `a` f x1
+    GcoerceListExpr x1 -> r GcoerceListExpr `a` f x1
     GMkMetadata x1 -> r GMkMetadata `a` f x1
     GMkName x1 -> r GMkName `a` f x1
     GMkRowDecl x1 x2 -> r GMkRowDecl `a` f x1 `a` f x2
     GMkRowTypeDecl x1 x2 x3 -> r GMkRowTypeDecl `a` f x1 `a` f x2 `a` f x3
-    GAssignS x1 x2 -> r GAssignS `a` f x1 `a` f x2
-    GEvalS x1 -> r GEvalS `a` f x1
-    GEvalWhetherS x1 -> r GEvalWhetherS `a` f x1
-    GExprS x1 -> r GExprS `a` f x1
-    GTypeDeclS x1 -> r GTypeDeclS `a` f x1
+    GAssignS x1 x2 x3 -> r GAssignS `a` f x1 `a` f x2 `a` f x3
+    GAtomicConcept x1 x2 -> r GAtomicConcept `a` f x1 `a` f x2
+    GEvalS x1 x2 -> r GEvalS `a` f x1 `a` f x2
+    GEvalWhetherS x1 x2 -> r GEvalWhetherS `a` f x1 `a` f x2
+    GExprS x1 x2 -> r GExprS `a` f x1 `a` f x2
+    GLetIsTrue x1 x2 x3 -> r GLetIsTrue `a` f x1 `a` f x2 `a` f x3
+    GTypeDeclS x1 x2 -> r GTypeDeclS `a` f x1 `a` f x2
     GMkTypeDecl x1 x2 x3 -> r GMkTypeDecl `a` f x1 `a` f x2 `a` f x3
     GListExpr x1 -> r GListExpr `a` foldr (a . a (r (:)) . f) (r []) x1
+    GListIfThen x1 -> r GListIfThen `a` foldr (a . a (r (:)) . f) (r []) x1
+    GListLExpr x1 -> r GListLExpr `a` foldr (a . a (r (:)) . f) (r []) x1
     GListName x1 -> r GListName `a` foldr (a . a (r (:)) . f) (r []) x1
     GListRowTypeDecl x1 -> r GListRowTypeDecl `a` foldr (a . a (r (:)) . f) (r []) x1
     _ -> r t
