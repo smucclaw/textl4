@@ -47,6 +47,7 @@ executable lam4-cli
         , filepath
         , bytestring
         , lens-regex-pcre
+        , dotenv
 
     hs-source-dirs:   app
     default-language: GHC2021

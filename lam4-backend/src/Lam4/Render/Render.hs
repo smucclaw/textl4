@@ -2,9 +2,12 @@
 {-# LANGUAGE OverloadedRecordDot #-}
 {-# LANGUAGE QuasiQuotes         #-}
 
-module Lam4.Render.Render (NLGConfig (..), NLGEnv, makeNLGEnv, renderCstProgramToNL) where
+module Lam4.Render.Render (NLGConfig (..), NLGEnv (..), NLGOutput (..), makeNLGEnv, renderCstProgramToNL) where
 
+import           Base (Text, Generic)
+import           Base.Aeson
 import qualified Base.Text                as T
+-- TODO: Refactor to just use the optics versions...
 import           Control.Lens             ((%~), (&))
 import           Control.Lens.Regex.Text  (match, regex)
 import           Data.String.Interpolate  (i)
@@ -23,12 +26,24 @@ type GFLinearizer = PGF.Tree -> T.Text
 
 -- | Config that stores info about paths and various other NLG configuration things
 data NLGConfig = MkNLGConfig {
-      outputDir              :: FilePath
-    , abstractSyntaxFilename :: FilePath
-    -- ^ e.g. "Lam4.pgf"
-    , concreteSyntaxName     :: String
+      outputDir          :: FilePath
+    , outputFilename     :: FilePath
+    , pgfFilename        :: FilePath
+    -- ^ GF Portable Grammar Format filename. E.g. "Lam4.pgf"
+    , concreteSyntaxName :: String
     -- ^ e.g. "Lam4Eng"
 }
+
+-- | The output type for JSON serialization
+data NLGOutput = MkNLGOutput {
+    sourceFilenames  :: [FilePath],
+    naturalLanguage  :: Text
+}
+  deriving stock (Eq, Ord, Show, Generic)
+
+instance ToJSON NLGOutput
+instance FromJSON NLGOutput
+
 
 -- Loosely copied from dsl/…/natural4
 -- | Env that's needed for NLG operations
@@ -45,11 +60,11 @@ makeNLGEnv config = do
   -- TODO: In the future, the GF-specific paths will be loaded from cmd line args, though we could have 'default' filenames or smtg
 
   -- Load grammar file
-  grammarFile <- getDataFileName $ gfPath config.abstractSyntaxFilename
+  grammarFile <- getDataFileName $ gfPath config.pgfFilename
   gr <- PGF.readPGF grammarFile
 
   -- Set up PGF Language and GF Linearizer
-  let lang       = initializeGFLang config.concreteSyntaxName gr 
+  let lang       = initializeGFLang config.concreteSyntaxName gr
       linearizer = makeGFLinearizer gr lang
   pure $ NLGEnv linearizer
 
@@ -200,5 +215,3 @@ parseRow rtd = GMkRowDecl (parseMetadata rtd.metadata) (parseName rtd.name)
       case mdata.description of
         Just md -> GMkMetadata $ GString $ T.unpack md
         Nothing -> GNoMetadata
-
-

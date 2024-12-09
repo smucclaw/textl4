@@ -26,13 +26,16 @@ UPDATE_REMOTE_DECISION_SERVICE_ON_SAVE_STATUS=<use "update" if you want it to up
 DECISION_SERVICE_REQUEST_MAKER_CMD=<for CCLAW: use "l4-oia">
 DEMO_OIA_DATA_MODEL_XML_PATH=<for CCLAW: use path to projectDataModel.xml>
 COMPILED_SIMALA_OUTPUT_DIR="generated/simala"
+NLG_EN_OUTPUT_DIR="generated/nlg_en"
+NLG_EN_OUTPUT_FILENAME="nlg_en_output.json"
+GF_PORTABLE_GRAMMAR_FORMAT_FILENAME="Lam4.pgf"
 ```
 
 ## How to compile Lam4 files
 
 Use the `lam4-cli`.
 
-EG, from the root `lam4` dir: 
+EG, from the root `lam4` dir:
 
 > `cabal run lam4-cli -- examples/arithmetic.l4`
 
@@ -100,9 +103,9 @@ When things update...
 * You can update your VSCode extension from the command line using the commands mentioned earlier. Yongming has a personal script for this that can be adapted (`yongminghan` is the publisher). If the changes don't show up, try restarting the extension host from VSCode:
 
 ```bash
-code --uninstall-extension yongminghan.lam4; 
-rm lam4-0.0.1.vsix; 
-vsce package; 
+code --uninstall-extension yongminghan.lam4;
+rm lam4-0.0.1.vsix;
+vsce package;
 code --install-extension lam4*.vsix
 ```
 
@@ -125,7 +128,7 @@ After building:
 
 #### Typechecker, evaluator, backend related
 
-The type checker is currently implemented in Typescript, but in the medium term I want to just move that to the Haskell backend. 
+The type checker is currently implemented in Typescript, but in the medium term I want to just move that to the Haskell backend.
 
 I also want to have some kind of JSON RPC going with the Haskell backend, so that we'll be able to, e.g., parse the program, run the evaluator, and see nice feedback in a webview, all within the IDE.
 
